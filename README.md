@@ -19,7 +19,11 @@ This algorithm is a Python-based Perlin noise generation and state estimation so
 
 ## 2. REQUIREMENTS
 
-Python (3.7.0) 
+Python 3.7.0
+
+lhsmdu(0.1)
+scipy (1.2.0) /numpy (1.16.1) 
+matplotlib (2.2.3)
 
 Tested on Ubuntu 18.04 LTS
 Functional on TACC Stampede2 SKX 
