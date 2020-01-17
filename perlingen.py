@@ -93,11 +93,11 @@ N_parts, desired_D):
         outfile = 'results/out_%05d.png' % (i)
         plt.imsave(outfile,np.squeeze(part_outputs[i,:,:]))
     print('...\n')
-    print('input: f %.3f,  l %.3f, d %.3f, lb %.3f, g %.3f, ld %.3f, r %.3f, p %.3f'%(params['fibreness'],params['fibre_sep'],params['patchiness'],params['feature_size'],params['roughness'],params['patch_size'],params['fibre_alignment'],params['direction']))
+    print('input: f %.3f,  l %.3f, d %.3f, lb %.3f, g %.3f, ld %.3f, r %.3f, p %.3f'%(params['fibreness'], params['fibre_sep'], params['patchiness'], params['feature_size'], params['roughness'], params['patch_size'], params['fibre_alignment'], params['direction']))
     
     print('...\n')
     for i in range(N_parts):
-        print('out_%05d: f %.3f,  l %.3f, d %.3f, lb %.3f, g %.3f, ld %.3f, r %.3f, p %.3f'%(i,part_thetas[i,0],part_thetas[i,1],part_thetas[i,2],part_thetas[i,3],part_thetas[i,4],part_thetas[i,5],part_thetas[i,6],part_thetas[i,7]))
+        print('out_%05d: f %.3f,  l %.3f, d %.3f, lb %.3f, g %.3f, ld %.3f, r %.3f, p %.3f'%(i, part_thetas[i,0], part_thetas[i,1], part_thetas[i,2], part_thetas[i,3], part_thetas[i,4], part_thetas[i,5], part_thetas[i,6], part_thetas[i,7]))
     return 
 
 if __name__=='__main__':

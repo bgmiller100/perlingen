@@ -3,7 +3,7 @@
 #SBATCH -J perlingen.job
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -t 04:00:00
+#SBATCH -t 4:00:00
 #SBATCH --mail-user benjamin.g.miller@utexas.edu
 #SBATCH --mail-type ALL
 module load python3
