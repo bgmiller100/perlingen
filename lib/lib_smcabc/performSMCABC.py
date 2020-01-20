@@ -196,10 +196,10 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     
     keep_fraction = 0.5 #0.75;         
     # The proportion of particles to keep during each resample step (recommended ~0.5 as a starting value)
-    #if N_parts<100:
-        #max_MCMC_steps = 50
-    #else:
-    max_MCMC_steps = 300
+    if N_parts<100:
+        max_MCMC_steps = 50
+    else:
+        max_MCMC_steps = 300
     # The maximum number of 'jiggle' steps applied to all particles in the attempt to find unique locations
     verbose = 1;                 
     #Output information about particle uniqueness and discrepancy targets
@@ -211,22 +211,20 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     #print('cpus: '+str(cpu_count()))    
     process_count = cpu_count()  #replacing cpu_count() directly    
     print('cpus: %d / %d'%(process_count,cpu_count()))
-    #max_time = 300
-    #reports 272, but fails with set to even 32.  Quick warm up of 16 (twice oden pc)
-    #since starmap update, works with 32, can probably increase higiher
-    #max_runtime = time.time()+max_time
+    max_time = 300
+    max_runtime = time.time()+max_time
     print('beginning pool...')
     start = time.time()
     #test maintaining this
     pool = get_context("spawn").Pool(processes = process_count, maxtasksperchild=1)
-    time.sleep(5)
+    time.sleep(1)
     end = time.time()
     print('time elapsed: '+str(end-start))
   
     print('warming up...')
     start = time.time()
     pool.map(warmup, range(process_count), chunksize=1)
-    time.sleep(5)
+    time.sleep(1)
     end  = time.time()
     print('time elapsed: '+str(end-start))
     
@@ -292,7 +290,6 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     time.sleep(5)
     print('creating partial...')
     #runSimLoop  = partial(runSim, part_params=part_params, Pt=Pt, Ot=Ot, f_simulate=f_simulate, f_summaries=f_summaries, seed_nums=seed_nums)
-
 
     iterable = []
     for k in range(N_parts):
@@ -374,16 +371,15 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
         print('Iteration count: %g' % (testitcount,))
         testitcount+=1
         # First, sort all the particles according to their discrepancy
-        ordering = np.argsort(part_Ds)        
+        ordering = np.argsort(part_Ds) 
         part_Ds = part_Ds[ordering]
-        #print(part_Ds)
         part_outputs = part_outputs[ordering,:,:]
         part_thetas = part_thetas[ordering,:]
         part_summaries = part_summaries[ordering,:]
         
         # Now select the target discrepancy as the worst particle of the kept
         # fraction
-        target_D = part_Ds[worst_keep]
+        target_D = np.copy(part_Ds[worst_keep])
         
         # Select which particles, from those that are kept, to resample the
         # discarded particles onto.
@@ -394,15 +390,18 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
         # particles are far from D = 0 it will not be an issue.
         
         part_logweights = - 9 * (part_Ds[:worst_keep]**2) / part_Ds[worst_keep]**2
-        part_logweights = part_logweights + part_logweights.max()   
+        part_logweights = part_logweights + part_logweights.max() 
+  
         #Normalise so largest weight is 1 (0 on log scale)
+        #print('max weight '+str(np.max(part_logweights)))
         part_weights = np.exp(part_logweights)
         part_weights = part_weights / np.sum(part_weights)
+
         # Now select particles from the kept particles, according to
         # their weights, to decide which particles to copy ontio
         #print(np.shape(range(worst_keep)))
         #print(N_parts-worst_keep)
-        selection = np.random.choice(a=range(worst_keep), size=N_parts-worst_keep,replace=False,p=part_weights)
+        selection = np.random.choice(a=range(worst_keep), size=N_parts-worst_keep,replace=False)#,p=part_weights)
    
         # Now perform the particle copy
         part_thetas[worst_keep:,:] = part_thetas[selection,:]
@@ -421,7 +420,7 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
         # Create a weighted covariance matrix to use in a multivariate
         # normal jumping distribution. 2.38^2/N is the 'optimal' factor
         # under some assumptions
-        Ctheta = 2.38**2 / N_theta * np.cov(np.transpose(part_thetas))
+        Ctheta = (2.38**2 / N_theta) * np.cov(np.transpose(part_thetas))
         #Ctheta = np.transpose(Ctheta)
         #print(Ctheta)
         '''
@@ -518,7 +517,7 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
             accepted[k] = r[5]
         del iterable
         # print('Complete\n')
-              
+        #print(part_summaries)
         print('mvn2 duration: '+str(time.time()-start)) 
         # Count the number of unique particles 
         #unique_thetas = np.unique(part_thetas, axis=0)
@@ -564,9 +563,9 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
         if mem_used > 90:
             print('WARNING: High memory usage.  Aborting!\n')
             looping = 0
-        #if time.time()>max_runtime:
+        if time.time()>max_runtime:
             #print('WARNING: Runtime exceeded.  Aborting!')
-            #looping = 0
+            looping = 0
     # Close the parallel pool now that it's use is finished
     pool.close()
     pool.join()

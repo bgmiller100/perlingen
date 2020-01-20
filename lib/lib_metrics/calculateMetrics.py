@@ -133,7 +133,7 @@ def main(pattern):
                     try: #catch failed axis fitting
                         axes = ellipse_axis_length(a)
                         if all(np.isreal([axes[0],axes[1]])):
-                            metrics.extend([np.real(angle), np.real(axes[0]), np.real(axes[1])])
+                            metrics.extend([np.real(angle)*180/np.pi, np.real(axes[0]), np.real(axes[1])])
                         else:
                             metrics.extend([0,0,0])
                             #print('imaginary axes')
