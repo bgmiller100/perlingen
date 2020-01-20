@@ -41,6 +41,7 @@ def main(mesh, density, params_old, Pt, Ot):
       params = {'fibreness':params_old[0], 'fibre_sep':params_old[1], 'patchiness': params_old[2], 'feature_size':params_old[3], 'roughness': params_old[4], 'patch_size':params_old[5], 'fibre_alignment': params_old[6], 'direction':params_old[7], 'n_fibres_similarity':4, 'wiggle_feature_length':4, 'phasefield_strength':5, 'fibre_period':2}
   else:
       params=params_old
+  params['direction'] = params['direction'] * np.pi / 180
   # Create a rotated set of points for the application of anisotropy and
   # creation of fibre-aligned pattern. Stored as two rows for ease of matrix
   # transforms and input into C++ functions  
@@ -130,7 +131,7 @@ def main(mesh, density, params_old, Pt, Ot):
   F = np.flipud(F);
   O_b = np.flipud(O_b);
   O_d = np.flipud(O_d);
-  
+  params['direction'] = params['direction'] * 180 / np.pi
   #return presence, O_b, O_d, F
   return presence  
 

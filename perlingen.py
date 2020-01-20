@@ -55,7 +55,7 @@ N_parts, desired_D):
         generateSeedData.main(N_seeds, N_freqs, seed)
     
     ## RUN   
-    direction = (direction)*np.pi/180 
+    direction = direction
     mesh = buildMesh.main(Nx,Ny,pixel_width); #(Nx,Ny,pixel_width);
     params = {'fibreness':fibreness, 'fibre_sep':fibre_sep, 'patchiness':patchiness, 
               'feature_size':feature_size,'roughness':roughness, 'patch_size':patch_size,
