@@ -18,15 +18,9 @@ This is a temporary script file.
 #            ellipses
 
 #Credit: http://nicky.vanforeest.com/misc/fitEllipse/fitEllipse.html
+#New alg: http://www.juddzone.com/ALGORITHMS/least_squares_ellipse.html
 
-import numpy as np
-from numpy.linalg import eig, inv, det
-#import cv2
-from scipy.ndimage.filters import gaussian_filter
-from scipy.spatial import ConvexHull
-import warnings
-#import matplotlib.pyplot as plt
-
+'''
 def fitEllipse(x,y):
     x = x[:,np.newaxis]
     y = y[:,np.newaxis]
@@ -34,12 +28,17 @@ def fitEllipse(x,y):
     S = np.dot(D.T,D)
     C = np.zeros([6,6])
     C[0,2] = C[2,0] = 2; C[1,1] = -1
-    if det(S) == 0:
-        raise ValueError
-    E, V =  eig(np.dot(inv(S), C))
+    #if det(S) == 0:
+        #print(str(len(x))+' '+str(len(y)))
+        #print(pinv(S))
+    #    raise ValueError
+    E, V =  eig(np.dot(pinv(S), C))
     n = np.argmax(np.abs(E))
     a = V[:,n]
+    #if det(S) == 0:
+        #print("pinv")
     return a
+
 def ellipse_angle_of_rotation( a ):
     b,c,d,f,g,a = a[1]/2, a[2], a[3]/2, a[4]/2, a[5], a[0]
     if b == 0:
@@ -59,10 +58,57 @@ def ellipse_axis_length( a ):
     up = 2*(a*f*f+c*d*d+g*b*b-2*b*d*f-a*c*g)
     down1=(b*b-a*c)*( (c-a)*np.sqrt(1+4*b*b/((a-c)*(a-c)))-(c+a))
     down2=(b*b-a*c)*( (a-c)*np.sqrt(1+4*b*b/((a-c)*(a-c)))-(c+a))
-    res1=np.sqrt(up/down1)
-    res2=np.sqrt(up/down2)
+    if up/down1<0:
+        res1=np.sqrt(np.abs(up/down1))
+        res2=np.sqrt(np.abs(up/down2))
+        #print('axiserror1 '+str(res1)+' ecc '+str(res1/res2))
+    elif up/down2<0:
+        res1=np.sqrt(np.abs(up/down1))
+        res2=np.sqrt(np.abs(up/down2))
+        #print('axiserror2 '+str(res2)+' ecc '+str(res1/res2))
+    else:
+        #print(np.sqrt(np.abs(up/down1)))
+        #print(np.sqrt(np.abs(up/down2)))
+        res1=np.sqrt(np.abs(up/down1))
+        res2=np.sqrt(np.abs(up/down2))
     return np.array([res1, res2])
+    '''
 
+
+import numpy as np
+from numpy.linalg import eig, inv, pinv, det
+#import cv2
+from scipy.ndimage.filters import gaussian_filter
+from scipy.spatial import ConvexHull
+#from scipy.interpolate import LinearNDInterpolator
+from scipy.ndimage.morphology import binary_dilation
+import warnings
+#import matplotlib.pyplot as plt
+
+
+def fitEllipse2(x,y):
+    x = x[:,np.newaxis]
+    y = y[:,np.newaxis]
+    J =  np.hstack((x*x, x*y, y*y, x, y))
+    K = np.ones_like(x)
+    S = np.dot(J.T,J)
+    ABC = np.dot(pinv(S),np.dot(J.T,K))
+    a = np.append(ABC,-1)
+
+    Amat = np.array([[a[0],a[1]/2.,a[3]/2.], [a[1]/2., a[2], a[4]/2.], [a[3]/2.,a[4]/2.,a[5]]])
+    A2 = Amat[0:2,0:2]
+    cc = -np.dot(inv(A2),a[3:5]/2.)
+    Tofs = np.eye(3)
+    Tofs[2,0:2]=cc
+    R = np.dot(Tofs,np.dot(Amat,Tofs.T))
+    R2 = R[0:2,0:2]
+    RS = R2/(-R[2,2])
+    (el,ec) = eig(RS)
+    recip = 1./np.abs(el)
+    axes = np.sqrt(recip)
+    deg = np.degrees(np.arctan2(ec[1,0],ec[0,0]))
+
+    return np.array([deg, axes[0], axes[1]])
 
 def main(pattern):
    
@@ -110,22 +156,30 @@ def main(pattern):
         # mask = cv2.threshold(np.array(mask*255, dtype=np.uint8), 0,255,cv2.THRESH_BINARY)[1]
         #mask = np.array(mask*255, dtype=np.uint8)
         # Find properties of the best-fit ellipse for this mask
-      
+        #mask = binary_dilation(mask)
         pts = np.transpose(np.asarray(np.where(mask==1))) #access pts[0], pts[1]
         hull = ConvexHull(pts)
-
+        if len(pts[hull.vertices,0]) <6: 
+            mask = binary_dilation(mask)
+            pts = np.transpose(np.asarray(np.where(mask==1))) 
+            hull = ConvexHull(pts)
+        #if correctcount>0:
+           # print('correction count: '+str(correctcount))
         #Test confirms good hull 
         #plt.plot(pts[:,0],pts[:,1],'o')
         #for simplex in hull.simplices:
         #    plt.plot(pts[simplex,0],pts[simplex,1],'k-')
         #plt.show()
-
+        
 
         #print('running...')
+        
         np.seterr(all='warn')
         with warnings.catch_warnings():
             warnings.filterwarnings('error')
             try: #catch singular matrices 
+                metrics.extend(fitEllipse2(pts[hull.vertices,0], pts[hull.vertices,1]))
+                '''
                 a = fitEllipse(pts[hull.vertices,0], pts[hull.vertices,1])
                 angle = ellipse_angle_of_rotation(a)
                 if np.isreal(angle): #catch failed angle fitting
@@ -136,20 +190,26 @@ def main(pattern):
                             metrics.extend([np.real(angle)*180/np.pi, np.real(axes[0]), np.real(axes[1])])
                         else:
                             metrics.extend([0,0,0])
-                            #print('imaginary axes')
+                            print('imaginary axes')
                             #print([angle, axes[0], axes[1]])
                     except Warning:
                         metrics.extend([0,0,0])
-                        #print('axis error')
+                        print('axis error')
+
+                        #plt.plot(pts[:,0],pts[:,1],'o')
+                        #for simplex in hull.simplices:
+                        #    plt.plot(pts[simplex,0],pts[simplex,1],'k-')
+                        #plt.show()
                         pass
                 else:
-                    #print('imaginary angles')
+                    print('imaginary angles')
                     metrics.extend([0,0,0])
+                '''
             except ValueError:
-                #print('fitting error')
+                print('fitting error')
                 metrics.extend([0,0,0])
                 pass
-            #print([angle, axes[0], axes[1]])
+        
     return metrics
 
 
