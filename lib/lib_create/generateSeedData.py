@@ -1,21 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov  1 10:55:54 2019
+@author: Brodie Lawson et al. (see README), Benjamin Miller 
 
-@author: Ben
+This function creates seed data and saves it as seedinfo.npy
+This function only needs to be called when seed data needs to be changed
+or (re)generated. Usage:
+
+generateSeedData( N_seeds, (N_offsets), (seed) );
+
+N_seeds:   number of unique seeds to generate
+N_freqs:   optional argument specifying the maximum number of octave
+            layers that will ever be required (default: 8)
+seed:      an integer that, if provided, will be used for seeding
+            MATLAB's random number generator
 """
-# This function creates seed data and saves it as fibro_seedinfo.mat
-# This function only needs to be called when seed data needs to be changed
-# or (re)generated. Usage:
-#
-# generateSeedData( N_seeds, (N_offsets), (seed) );
-#
-# N_seeds:   number of unique seeds to generate
-# N_freqs:   optional argument specifying the maximum number of octave
-#            layers that will ever be required (default: 8)
-# seed:      an integer that, if provided, will be used for seeding
-#            MATLAB's random number generator
-
 import random 
 import numpy as np
 

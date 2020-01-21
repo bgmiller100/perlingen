@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov  1 10:17:39 2019
+@author: Brodie Lawson et al. (see README), Benjamin Miller 
 
-@author: Ben
+This function simply builds a basic struct that contains the mesh
+information, to be used by the other functions.  
+
+Input: Nx: Number of x-axis pixels
+       Ny: Number of y-axis pixels
+       Pixel_width: Dimensionality scaling parameter, leave as default.  
+
+Output:
+       Mesh: meshgrid dictionary for image structure 
 """
-# This function simply builds a basic struct that contains the mesh
-# information, to be used by the other functions
 import numpy as np
 
 def main(Nx=500,Ny=500,pixel_width=.0075):
