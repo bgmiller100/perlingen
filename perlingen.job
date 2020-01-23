@@ -3,9 +3,9 @@
 #SBATCH -J perlingen.job
 #SBATCH -N 1
 #SBATCH -n 1
-#SBATCH -t 4:00:00
+#SBATCH -t 24:30:00
 #SBATCH --mail-user benjamin.g.miller@utexas.edu
 #SBATCH --mail-type ALL
 module load python3
 # export OMP_NUM_THREADS=1
-python3 -Xfaulthandler perlingen.py --particles 2000 --discrepancy 0
+python3 -Xfaulthandler perlingen.py --particles 2000 --discrepancy 0 --time 86400 

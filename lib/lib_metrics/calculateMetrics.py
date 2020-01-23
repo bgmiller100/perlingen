@@ -46,13 +46,14 @@ def fitEllipse2(x,y):
     R = np.dot(Tofs,np.dot(Amat,Tofs.T))
     RS = R[0:2,0:2]/(-R[2,2])
     (el,ec) = eig(RS)
-    if np.abs(el)==0:
-        axes = np.array([1000,1000])
-        deg = 0
-    else:
-        #Get axes and orientation data 
-        axes = np.sqrt(1./np.abs(el))
-        deg = np.degrees(np.arctan2(ec[1,0],ec[0,0]))
+    try: 
+        recip = 1./np.abs(el)
+    except:
+        recip = 0.1
+        print('recip err')
+    #Get axes and orientation data 
+    axes = np.sqrt(1./np.abs(el))
+    deg = np.degrees(np.arctan2(ec[1,0],ec[0,0]))
     return np.array([deg, axes[0], axes[1]])
 
 def main(pattern):

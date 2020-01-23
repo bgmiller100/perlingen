@@ -62,22 +62,25 @@ N_parts, desired_D, max_time, run_smcabc):
         generateSeedData.main(N_seeds, N_freqs, seed)
     
     ## RUN   
-    direction = direction
+    #build mesh
     mesh = buildMesh.main(Nx,Ny,pixel_width); #(Nx,Ny,pixel_width);
     params = {'fibreness':fibreness, 'fibre_sep':fibre_sep, 'patchiness':patchiness, 
               'feature_size':feature_size,'roughness':roughness, 'patch_size':patch_size,
               'fibre_alignment':fibre_alignment, 'direction':direction,
 	      'n_fibres_similarity':n_fibres_similarity, 'wiggle_feature_length':wiggle_feature_length, 'phasefield_strength':phasefield_strength,'fibre_period':fibre_period}
 
+    #check for results directory
     try:
     	os.makedirs('results')
     except OSError:
     	if not os.path.isdir('results'):
     		raise
+    #run generator 
     patterns, img = generatePatterns.main(params, density, N_patterns, mesh, num_imgs);
     target_data = img
     plt.imsave('results/input_target.png',target_data)
-    
+    np.save("results/generated_patterns.npy",patterns)
+    #run smcabc 
     if run_smcabc==1:
         f_simulate = partial(createFibroPattern.main, mesh, density)
         f_summaries = calculateMetrics.main
@@ -92,16 +95,24 @@ N_parts, desired_D, max_time, run_smcabc):
 
         print('TOTAL RUNTIME: '+str(time.time()-start_all))
     
-        print('printing results')
-        for i in range(N_parts):
+        print('printing unique results')
+        for i in range(np.shape(part_thetas)[0]):
             outfile = 'results/out_%05d.png' % (i)
             plt.imsave(outfile,np.squeeze(part_outputs[i,:,:]))
         print('...\n')
         print('input: f %.3f,  l %.3f, d %.3f, lb %.3f, g %.3f, ld %.3f, r %.3f, p %.3f'%(params['fibreness'], params['fibre_sep'], params['patchiness'], params['feature_size'], params['roughness'], params['patch_size'], params['fibre_alignment'], params['direction']))
-    
+
+        #save raw data
+        np.save("results/part_thetas.npy",part_thetas)
+        np.save("results/part_outputs.npy",part_outputs)
+        np.save("results/part_summaries",part_summaries)
+        np.save("results/part_Ds.npy",part_Ds)
+
         print('...\n')
-        for i in range(N_parts):
+        
+        for i in range(np.shape(part_thetas)[0]):
             print('out_%05d: f %.3f,  l %.3f, d %.3f, lb %.3f, g %.3f, ld %.3f, r %.3f, p %.3f'%(i, part_thetas[i,0], part_thetas[i,1], part_thetas[i,2], part_thetas[i,3], part_thetas[i,4], part_thetas[i,5], part_thetas[i,6], part_thetas[i,7]))
+        print('...\n')
     return 
 
 if __name__=='__main__':
@@ -121,7 +132,7 @@ if __name__=='__main__':
     import faulthandler
     import time
     import matplotlib
-    matplotlib.use('TkAgg')
+    matplotlib.use('Agg')
     import matplotlib.pyplot as plt
 
     faulthandler.enable()

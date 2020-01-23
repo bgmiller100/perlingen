@@ -449,7 +449,6 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     
         if N_unique <= (N_parts / 2):
             print("WARNING: SMC loop terminated due to particle degeneracy. Target not reached! \n")
-            print("Best discrepancy: %.2f, Worst discrepancy: %.2f"%(part_Ds[0], part_Ds[worst_keep]))
             looping = 0;
         
         '''
@@ -477,8 +476,17 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     pool.close()
     pool.join()
     del pool
+    #Sort final output
+    ordering = np.argsort(part_Ds) 
+    part_Ds = part_Ds[ordering]
+    part_outputs = part_outputs[ordering,:,:]
+    part_thetas = part_thetas[ordering,:]
+    part_summaries = part_summaries[ordering,:]
+    print("Best discrepancy: %.2f, Worst discrepancy: %.2f"%(part_Ds[0], part_Ds[N_parts-1]))
+
     print('SMCABC COMPLETE\n')
-    return part_thetas, part_outputs, part_summaries, part_Ds
+    #print only unique output
+    return np.unique(part_thetas,axis=0), np.unique(part_outputs,axis=0), np.unique(part_summaries,axis=0), np.unique(part_Ds,axis=0)
 
 
 if __name__=='__main__':
