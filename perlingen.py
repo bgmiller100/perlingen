@@ -85,9 +85,14 @@ N_parts, desired_D, max_time, run_smcabc):
         f_simulate = partial(createFibroPattern.main, mesh, density)
         f_summaries = calculateMetrics.main
         f_discrepancy = ellipseDiscrepancy.main 
-        params_mins = np.array([0, 0.3, 0, .01, 0, 1, 0.5, -90]) 
-        params_maxs = np.array([0.4, 2, 0.5, 2, .99, 8, 50, 90])
-        scale_param = np.array([ 0, 0, 0, 0, 0, 0, 1, 0], dtype=int)
+
+        #params_mins = np.array([0.0, 0.3, 0.0, 0.01, 0.00, 1., 00.5, -90.])
+        #params_maxs = np.array([0.4, 2.0, 0.5, 2.00, 0.99, 5., 20.0, 90.])
+        #                                                   8   50
+        #generated              [0.4, 0.6, 0.05,0.08, 0.10, 2., 15.0., 45]             
+        params_mins = np.array([0.0, 0.3, 0.00, 0.01, 0.00, 1., 00.5, -90]) 
+        params_maxs = np.array([0.4, 1.0, 0.10, 0.50, 0.30, 5., 20.0,  90])
+        scale_param = np.array([ 0,    0,    0,    0,    0, 0,     1,   0], dtype=int)
     
         print("running smcabc...\n")
         start_all = time.time()
@@ -96,10 +101,11 @@ N_parts, desired_D, max_time, run_smcabc):
         print('TOTAL RUNTIME: '+str(time.time()-start_all))
     
         print('printing unique results')
-        for i in range(np.shape(part_thetas)[0]):
+        for i in range(np.shape(part_outputs)[0]):
             outfile = 'results/out_%05d.png' % (i)
             plt.imsave(outfile,np.squeeze(part_outputs[i,:,:]))
         print('...\n')
+        '''
         print('input: f %.3f,  l %.3f, d %.3f, lb %.3f, g %.3f, ld %.3f, r %.3f, p %.3f'%(params['fibreness'], params['fibre_sep'], params['patchiness'], params['feature_size'], params['roughness'], params['patch_size'], params['fibre_alignment'], params['direction']))
 
         #save raw data
@@ -113,6 +119,7 @@ N_parts, desired_D, max_time, run_smcabc):
         for i in range(np.shape(part_thetas)[0]):
             print('out_%05d: f %.3f,  l %.3f, d %.3f, lb %.3f, g %.3f, ld %.3f, r %.3f, p %.3f'%(i, part_thetas[i,0], part_thetas[i,1], part_thetas[i,2], part_thetas[i,3], part_thetas[i,4], part_thetas[i,5], part_thetas[i,6], part_thetas[i,7]))
         print('...\n')
+        '''
     return 
 
 if __name__=='__main__':

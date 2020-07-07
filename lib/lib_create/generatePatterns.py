@@ -20,7 +20,7 @@ import numpy as np
 import random
 import lib.lib_create.createFibroPattern as createFibroPattern
 import matplotlib
-matplotlib.use('TkAgg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 def main(params, density, N_patterns, mesh, num_imgs):

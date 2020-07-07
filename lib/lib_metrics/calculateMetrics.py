@@ -24,7 +24,7 @@ from scipy.spatial import ConvexHull
 from scipy.ndimage.morphology import binary_dilation
 import warnings
 #import matplotlib.pyplot as plt
-
+#import pyfftw
 
 def fitEllipse2(x,y):
     #This function gets fits an ellipse to the hull of a 2D Fourier power spectrum 
@@ -49,10 +49,10 @@ def fitEllipse2(x,y):
     try: 
         recip = 1./np.abs(el)
     except:
-        recip = 0.1
+        recip = [0.01,0.01]
         print('recip err')
     #Get axes and orientation data 
-    axes = np.sqrt(1./np.abs(el))
+    axes = recip
     deg = np.degrees(np.arctan2(ec[1,0],ec[0,0]))
     return np.array([deg, axes[0], axes[1]])
 
@@ -66,6 +66,8 @@ def main(pattern):
     N_thresholds = len(power_thresholds)
     
     # Calculate the power spectrum of the (mean-subtracted) pattern
+    #P = pyfftw.interfaces.numpy_fft.fft2(pattern-np.mean(pattern))
+    #P = np.absolute(np.fft.fftshift(P))
     P = np.absolute(np.fft.fftshift(np.fft.fft2(pattern - np.mean(pattern))))
     P = P**2
     

@@ -123,16 +123,16 @@ def main(mesh, density, params_old, Pt, Ot):
   
   ## CONVERT BACK TO MATRICES
   presence = np.reshape(presence,(mesh['Nx'], mesh['Ny']))
-  F = np.reshape(F, (mesh['Nx'], mesh['Ny']))
-  O_b = np.reshape(O_b, (mesh['Nx'], mesh['Ny']))
-  O_d = np.reshape(O_d, (mesh['Nx'], mesh['Ny']))
+  #F = np.reshape(F, (mesh['Nx'], mesh['Ny']))
+  #O_b = np.reshape(O_b, (mesh['Nx'], mesh['Ny']))
+  #O_d = np.reshape(O_d, (mesh['Nx'], mesh['Ny']))
 
   ## FLIP TO CONVERT BACK TO IMAGES (starting at top left instead of bottom left)
   presence = np.flipud(presence);
-  F = np.flipud(F);
-  O_b = np.flipud(O_b);
-  O_d = np.flipud(O_d);
-  params['direction'] = params['direction'] * 180 / np.pi
+  #F = np.flipud(F);
+  #O_b = np.flipud(O_b);
+  #O_d = np.flipud(O_d);
+  #params['direction'] = params['direction'] * 180 / np.pi
   #return presence, O_b, O_d, F
   return presence  
 

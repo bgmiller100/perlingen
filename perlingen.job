@@ -1,11 +1,20 @@
 #!/bin/bash
-#SBATCH -p skx-normal
+#SBATCH -p skx-dev
 #SBATCH -J perlingen.job
 #SBATCH -N 1
-#SBATCH -n 1
-#SBATCH -t 24:30:00
+#SBATCH -n 11
+#SBATCH -t 00:05:00
 #SBATCH --mail-user benjamin.g.miller@utexas.edu
 #SBATCH --mail-type ALL
+#SBATCH -o outlog.slurm
 module load python3
-# export OMP_NUM_THREADS=1
-python3 -Xfaulthandler perlingen.py --particles 2000 --discrepancy 0 --time 86400 
+export OMPI_MCA_pml=0b1
+#export OMP_NUM_THREADS=1
+ibrun python3 -m mpi4py.bench helloworld
+ibrun python3 -m mpi4py.bench ringtest -l 10
+#
+
+ibrun python3 -Xfaulthandler -m mpi4py.futures perlingenMPI.py --particles 500 --discrepancy 0 --time 50400
+#python3 -Xfaulthandler perlingenMPI.py --particles 500 --discrepancy 0 --time 50400 
+# prev 2000 particles 
+# 50400s = 14hr runtime, clear to 15hr job time

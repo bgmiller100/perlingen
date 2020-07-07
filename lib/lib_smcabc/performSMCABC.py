@@ -2,7 +2,7 @@
 """
 @author: Brodie Lawson et al. (see README), Benjamin Miller 
 
-This function performs SMC-ABC as laid out by:
+This function performs SMC-ABC with resampling by "an independent Metropolis-Hastings kernel" as laid out by:
 Drovandi, C. C. and Pettitt, A. N. (2011). Estimation of Parameters for
 Macroparasite Population Evolution using Approximate Bayesian Computation.
 Biometrics, 67(1):225-233.
@@ -15,6 +15,7 @@ calculate the discrepancy with the target data. Further options may be
 specified by the user within the body of the program.
 
 Usage:   [part_thetas, part_vals] = performSMCABC(N_parts, f_simulate, f_summaries, f_discrep, target_data, params_mins, params_maxs, scale_param, desired_D, visualise, (f_visualise), (options) )
+        print('worst tempering ESS possible: %.4f'%(ESS[np.argmax(np.abs(ESStarget-ESS))]))
 
 INPUTS
 -------
@@ -86,22 +87,32 @@ part_thetas - The locations in parameter space of the final particles
 
 part_vals - The model outputs corresponding to each particle
 """
-
+import time
 import numpy as np
 def runSim(k, part_params, Pt, Ot, f_simulate, f_summaries): #seed_nums
-    part_output = f_simulate(part_params, Pt, Ot)
-    part_summary = f_summaries(part_output)
+    part_output = np.asarray(f_simulate(part_params, Pt, Ot),dtype='f8')
+    part_summary = np.asarray(f_summaries(part_output),dtype='f8')
     return k, part_output, part_summary
 
-def MVN_move(k, N_moves, theta, output, summaries, D, Ctheta, theta_mins, theta_maxs, scale_param, target_D, Pt_pass, Ot_pass, f_simulate, f_summaries, f_discrep):
+def MVN_move(k, N_moves, theta, output, summaries, D, Ctheta, theta_mins, theta_maxs, scale_param, target_D, Pt_pass, Ot_pass, f_simulate, f_summaries, f_discrep, burnin=0):
     # This function performs MCMC updates ('move steps' or 'mutations') for a
     # single particle, using a multivariate normal jumping distribution
-
+  
     # Initialise variable 'moved' as false
     moved = 0
     # Perform the requested number of move steps
-    
+    mvcount=0
+    brokeout = 0
+    burnpass = 0.08
+    movespast = max(12, N_moves*burnpass)
     for y in range(N_moves):
+        #disabled  burn in currently 
+        if burnin==1 and mvcount>=movespast and moved==1: #will only reduce runs if given a burnin label
+            brokeout = 1
+            break #handle move to high-probability region with breakout speed-up
+            
+            #sudden, rapid degeneracy when reducing R to R/2
+            #new attempt - break only after establishing a high probability position 
         # Pick a new location from the multivariate normal centred around the
         # requested point
         prop_theta = np.random.multivariate_normal(theta, Ctheta)
@@ -110,15 +121,20 @@ def MVN_move(k, N_moves, theta, output, summaries, D, Ctheta, theta_mins, theta_
         # if new proposed location is inside prior space
         if all(prop_theta <= theta_maxs) & all(prop_theta >= theta_mins):
             
+            mydtype='f8'#'f8'
             # Convert scaling parameters back into true values for simulation
-            prop_params = np.copy(prop_theta)
+            prop_params = np.copy(prop_theta).astype(mydtype)
             prop_params[scale_param] = np.exp(prop_params[scale_param]);
             #print(prop_params[scale_param])
             # Calculate the associated model output, and discrepancy
-            prop_output = f_simulate(prop_params, Pt_pass, Ot_pass)
-            prop_summaries = f_summaries(prop_output)
-            prop_D = f_discrep(prop_summaries)
-                   
+            #time1=time.time()
+            prop_output = np.asarray(f_simulate(prop_params, Pt_pass, Ot_pass),dtype=mydtype)
+            #time2=time.time()
+            prop_summaries = np.asarray(f_summaries(prop_output),dtype=mydtype)
+            #time3=time.time()
+            prop_D = np.asarray(f_discrep(prop_summaries),dtype=mydtype)
+            #time4=time.time()
+            #print('SimTime:%.4f, SumTime:%.4f, DisTime:%.4f'%(time2-time1,time3-time2,time4-time3))
             # Now accept this move if it still satisfies the current discrepancy
             # constraint (ratio of jumping distribution probabilities is one)
             if prop_D <= target_D:
@@ -129,7 +145,9 @@ def MVN_move(k, N_moves, theta, output, summaries, D, Ctheta, theta_mins, theta_
                 summaries[:] = prop_summaries
                 # Switch 'moved' flag to true
                 moved = 1
-    return k, theta, output, summaries, D, moved
+                mvcount+=1
+                #break #escape as soon as good, to hasten
+    return k, theta, output, summaries, D, moved, brokeout
 
 def warmup(x):
     x = x * x
@@ -184,7 +202,11 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     max_runtime = time.time()+max_time
     print('beginning pool...')
     start = time.time()
-    
+    ESStarget=0.8
+   
+    burnidx = 50 #disabled
+    #5 #number of iterations to burn-in (use full R)
+
     #generate and warm up pool 
     pool = get_context("spawn").Pool(processes = process_count, maxtasksperchild=1)
     time.sleep(1)
@@ -201,9 +223,9 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     # Calculate the summaries for the target data
     print('calculating target summaries...')
     start=time.time()
-    target_summaries = f_summaries(target_data)
+    target_summaries = np.asarray(f_summaries(target_data),dtype='f8')
     end=time.time()
-    print('calculated, time elapsed: '+str(end-start))
+    #print('calculated, time elapsed: '+str(end-start))
     # Calculate the ordinal location of the last particle kept for convenience
     worst_keep = int(np.rint(N_parts * keep_fraction)+1)
     # Read out the number of variables
@@ -213,9 +235,9 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     # parameters is termed 'theta' in this code
     #print('scaling...')
     scale_param = scale_param==1
-    theta_mins = np.copy(params_mins)
+    theta_mins = np.copy(params_mins).astype('f8')
     theta_mins[scale_param] = np.log(theta_mins[scale_param])
-    theta_maxs = np.copy(params_maxs)
+    theta_maxs = np.copy(params_maxs).astype('f8')
     theta_maxs[scale_param] = np.log(theta_maxs[scale_param])
    
     # Initialise particles using Latin Hypercube Sampling
@@ -224,14 +246,14 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     part_thetas = theta_mins + np.multiply(part_lhs,(theta_maxs - theta_mins))
     
     # For simulation, convert scaling parameters back to true values
-    part_params = np.copy(part_thetas)
+    part_params = np.copy(part_thetas).astype('f8')
     part_params[:,scale_param] = np.exp(part_params[:,scale_param])
 
     # Load seed data (generated by a separate file)
     #print('loading seed data...')
     seedinfo = np.load("seedinfo.npy",allow_pickle=True)
-    Pt = seedinfo.item().get('permute_tables')
-    Ot = seedinfo.item().get('offset_tables')
+    Pt = np.asarray(seedinfo.item().get('permute_tables'),dtype='f8')
+    Ot = np.asarray(seedinfo.item().get('offset_tables'),dtype='f8')
     #Count number of seeds created
     N_seeds = np.shape(Pt)[0]
     
@@ -247,8 +269,8 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     # seed information
     print('creating savespace...')
     seed_nums = np.random.choice(a=range(N_seeds),size=N_parts)
-    part_outputs = np.zeros((N_parts, mesh['Nx'], mesh['Ny']))
-    part_summaries = np.zeros((N_parts, 27))
+    part_outputs = np.zeros((N_parts, mesh['Nx'], mesh['Ny'])).astype('f8')
+    part_summaries = np.zeros((N_parts, 27)).astype('f8')
 
     # Run the simulator and store summaries
     time.sleep(5)
@@ -295,14 +317,18 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
     # Use discrepancy function with this inverse matrix included
     f_discrep = partial(f_discrepancy,target_metrics_old = target_summaries, invC = invC_S)
     # Calculate discrepancies for each particle based on this distance measure
-    part_Ds = f_discrepancy(part_summaries, target_summaries, invC_S)
+    part_Ds = np.asarray(f_discrepancy(part_summaries, target_summaries, invC_S),dtype='f8')
 
     # Loop until stopping criteria is hit
     looping = 1
     testitcount = 1
     while looping: 
         print('Iteration count: %g' % (testitcount,))
-        testitcount+=1
+        if testitcount > burnidx:
+            burnin=1
+        else:
+            burnin=0
+
         # First, sort all the particles according to their discrepancy
         ordering = np.argsort(part_Ds) 
         part_Ds = part_Ds[ordering]
@@ -326,12 +352,27 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
         part_logweights = part_logweights + part_logweights.max() 
   
         #Normalise so largest weight is 1 (0 on log scale)
+        #part_weights = np.exp(part_logweights)
+        #part_weights = part_weights / np.sum(part_weights)
+
+        # Tempering and Normalizing
+        #via https://arxiv.org/pdf/1805.03317.pdf section 2.2
+        BetaSet = np.linspace(0, 1, num=100)
         part_weights = np.exp(part_logweights)
-        part_weights = part_weights / np.sum(part_weights)
+        weights = np.tile(part_weights, (len(BetaSet),1))
+        weights = np.divide(np.power(weights,BetaSet[:,None]),np.sum(np.power(weights,BetaSet[:,None]), axis=1)[:,None])
+        ESS = (1/np.sum(weights**2, axis=1))/(N_parts*keep_fraction)
+        ESSind = np.argmin(np.abs(ESStarget-ESS))
+        alpha = 20 #cooling rate for beta*(iteration/alpha)
+        Beta = BetaSet[ESSind]*max(1,((testitcount-1)/alpha)) 
+        part_weights = part_weights**Beta / np.sum(part_weights**Beta)
+        print('Weight tempering exponent: %.3f'%(Beta))
+
+
 
         # Now select particles from the kept particles, according to
         # their weights, to decide which particles to copy ontio
-        selection = np.random.choice(a=range(worst_keep), size=N_parts-worst_keep,replace=False)#,p=part_weights)
+        selection = np.random.choice(a=range(worst_keep), size=N_parts-worst_keep,replace=False,p=part_weights)
    
         # Now perform the particle copy
         part_thetas[worst_keep:,:] = part_thetas[selection,:]
@@ -363,7 +404,7 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
         #MVN_loop_set = partial(MVN_move, N_moves=1, part_thetas=part_thetas, part_outputs=part_outputs, part_summaries=part_summaries, part_Ds=part_Ds, Ctheta=Ctheta, theta_mins=theta_mins, theta_maxs=theta_maxs, scale_param=scale_param, target_D=target_D, Pt=Pt, Ot=Ot, f_simulate=f_simulate, f_summaries=f_summaries, f_discrep=f_discrep, seed_nums=seed_nums)
         iterable = []
         for k in range(worst_keep,N_parts):
-            iterable.append((k,1,np.array(part_thetas[k,:]).ravel(), np.squeeze(part_outputs[k,:,:]), np.squeeze(part_summaries[k,:]), np.squeeze(part_Ds[k]), Ctheta,theta_mins, theta_maxs, scale_param, target_D, np.squeeze(Pt[seed_nums[k],:,:]), np.squeeze(Ot[seed_nums[k],:,:]), f_simulate, f_summaries, f_discrep))
+            iterable.append((k,1,np.array(part_thetas[k,:]).ravel(), np.squeeze(part_outputs[k,:,:]), np.squeeze(part_summaries[k,:]), np.squeeze(part_Ds[k]), Ctheta,theta_mins, theta_maxs, scale_param, target_D, np.squeeze(Pt[seed_nums[k],:,:]), np.squeeze(Ot[seed_nums[k],:,:]), f_simulate, f_summaries, f_discrep, burnin))
 
         print('mvn1...')
         start = time.time()
@@ -405,7 +446,7 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
         
         iterable = []
         for k in range(worst_keep,N_parts):
-            iterable.append((k,int(R-1), np.array(part_thetas[k,:]).ravel(), np.squeeze(part_outputs[k,:,:]), np.squeeze(part_summaries[k,:]), np.squeeze(part_Ds[k]), Ctheta, theta_mins, theta_maxs, scale_param, target_D, np.squeeze(Pt[seed_nums[k],:,:]), np.squeeze(Ot[seed_nums[k],:,:]), f_simulate, f_summaries, f_discrep))
+            iterable.append((k,int(R-1), np.array(part_thetas[k,:]).ravel(), np.squeeze(part_outputs[k,:,:]), np.squeeze(part_summaries[k,:]), np.squeeze(part_Ds[k]), Ctheta, theta_mins, theta_maxs, scale_param, target_D, np.squeeze(Pt[seed_nums[k],:,:]), np.squeeze(Ot[seed_nums[k],:,:]), f_simulate, f_summaries, f_discrep,burnin))
 
         print('mvn2...')
         start = time.time()
@@ -413,6 +454,7 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
         chunksize = int((N_parts-worst_keep)/process_count)
         if chunksize<1:
             chunksize=1
+        brokeout=0
         results = pool.starmap_async(MVN_move,iterable,chunksize=chunksize)
         for r in results.get():
             k = r[0]
@@ -421,9 +463,11 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
             part_summaries[k,:] = r[3]
             part_Ds[k] = r[4]
             accepted[k] = r[5]
+            brokeout += r[6]
         del iterable
         print('mvn2 duration: '+str(time.time()-start)) 
-
+        brokepercent = 100*brokeout / (N_parts-worst_keep)
+        print('Breakout = %.2f %%'%(brokepercent))
         # Count the number of unique particles 
         #unique_thetas = np.unique(part_thetas, axis=0)
         N_unique = np.shape(np.unique(part_thetas,axis=0))[0]
@@ -461,7 +505,7 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
             
         end
         '''
-
+        '''
         #Memory and runtime safety features 
         mem_used = psutil.virtual_memory()[2]
         print('memory % used:', mem_used)
@@ -471,22 +515,29 @@ def main(N_parts, f_simulate, f_summaries, f_discrepancy, target_data, params_mi
         if time.time()>max_runtime:
             #print('WARNING: Runtime exceeded.  Aborting!')
             looping = 0
-
+        testitcount+=1
+        '''
+        break
     # Close the parallel pool now that it's use is finished
     pool.close()
     pool.join()
     del pool
-    #Sort final output
+
+    #Sort final unique output
     ordering = np.argsort(part_Ds) 
-    part_Ds = part_Ds[ordering]
-    part_outputs = part_outputs[ordering,:,:]
-    part_thetas = part_thetas[ordering,:]
-    part_summaries = part_summaries[ordering,:]
-    print("Best discrepancy: %.2f, Worst discrepancy: %.2f"%(part_Ds[0], part_Ds[N_parts-1]))
+    part_thetas = np.copy(np.unique(part_thetas[ordering,:], axis=0))
+    _,idx = np.unique(part_thetas,axis=0,return_index=True)
+    
+    part_thetas = np.copy(part_thetas[idx,:])
+    part_Ds = np.copy(part_Ds[idx])
+    part_outputs = np.copy(np.asarray(part_outputs[idx,:,:],dtype='f8'))
+    part_summaries = np.copy(part_summaries[idx,:])
+
+    print("Best discrepancy: %.2f, Worst discrepancy: %.2f"%(part_Ds[0], part_Ds[-1]))
 
     print('SMCABC COMPLETE\n')
     #print only unique output
-    return np.unique(part_thetas,axis=0), np.unique(part_outputs,axis=0), np.unique(part_summaries,axis=0), np.unique(part_Ds,axis=0)
+    return part_thetas, part_outputs, part_summaries, part_Ds
 
 
 if __name__=='__main__':
